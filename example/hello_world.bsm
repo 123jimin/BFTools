@@ -1,0 +1,3 @@
+init "\0Hello, world!"
+right
+loop { write; right; }
