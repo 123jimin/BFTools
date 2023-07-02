@@ -75,7 +75,4 @@ set '*'
 # Equivalent to set 1; right; set 2; right; set 3; left 2;
 set [1, 2, 3]
 set "Hello, world!\0"
-
-# Assumes that all cells are set to zero.
-init "Hello, world!\0"
 ```

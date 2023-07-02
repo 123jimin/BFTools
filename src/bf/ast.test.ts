@@ -16,7 +16,7 @@ Deno.test(function toBFCode_basic() {
 
     assertEquals(ast.toBFCode({type: 'write'}), ".", "write");
     assertEquals(ast.toBFCode({type: 'read'}), ",", "read");
-    assertEquals(ast.toBFCode({type: 'breakpoint'}), "@", "debug");
+    assertEquals(ast.toBFCode({type: 'breakpoint'}), "#", "debug");
 
     assertEquals(ast.toBFCode({type: 'loop', body: []}), "[]", "loop {}");
     assertEquals(ast.toBFCode({type: 'loop', body: [{type: 'loop', body: []}]}), "[[]]", "loop { loop {} }");

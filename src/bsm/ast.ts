@@ -1,3 +1,5 @@
+import type { Move as BFMove, Cell as BFCell } from "../bf/ast.ts";
+
 /** Replaces a combination of `bf.Move` and `bf.Cell`s */
 export interface Cells {
     type: 'cells';
@@ -7,6 +9,49 @@ export interface Cells {
     sets?: Map<number, number>;
     /** Amount of pointer shifts after `deltas` and `sets` are processed. */
     offset: number;
+}
+
+export function mergeCells(target: Cells, op: BFMove | BFCell | Cells): Cells {
+    switch(op.type) {
+        case 'move':
+            target.offset += op.delta;
+            break;
+        case 'cell':
+            if(target.sets?.has(target.offset)) {
+                target.sets.set(target.offset, target.sets.get(target.offset)! + op.delta);
+            }
+            break;
+        case 'cells':
+            if(op.deltas) {
+                for(let [offset, value] of op.deltas.entries()) {
+                    offset += target.offset;
+                    
+                    if(target.sets?.has(offset)) {
+                        target.sets.set(offset, target.sets.get(offset)! + value);
+                        continue;
+                    }
+                    
+                    if(!target.deltas) target.deltas = new Map();
+                    target.deltas.set(offset, (target.deltas.get(offset) ?? 0) + value);
+                }
+            }
+
+            if(op.sets) {
+                for(let [offset, value] of op.sets.entries()) {
+                    offset += target.offset;
+                    
+                    if(target.deltas?.has(offset)) target.deltas.delete(offset);
+
+                    if(!target.sets) target.sets = new Map();
+                    target.sets.set(offset, (target.sets.get(offset) ?? 0) + value);
+                }
+            }
+
+            target.offset += op.offset;
+            break;
+    }
+
+    return target;
 }
 
 /** Equivalent to either `.` or `,` */

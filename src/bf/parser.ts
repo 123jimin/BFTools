@@ -1,7 +1,7 @@
 import type { AST } from "./ast.ts";
 
 export interface ParseOption {
-    /** Whether to include breakpoints(@). Defaults to `true`. */
+    /** Whether to include breakpoints(#). Defaults to `true`. */
     include_breakpoints: boolean;
 }
 
@@ -15,7 +15,7 @@ export function parse(code: string, option?: Partial<ParseOption>): AST {
     let curr_ast: AST[] = [];
     const ast_stack: AST[][] = [];
 
-    const tokenizer = (option?.include_breakpoints ?? true) ? /(\++|\-+|<+|>+|[.,\[\]@])/g : /(\++|\-+|<+|>+|[.,\[\]])/g;
+    const tokenizer = (option?.include_breakpoints ?? true) ? /(\++|\-+|<+|>+|[.,\[\]#])/g : /(\++|\-+|<+|>+|[.,\[\]])/g;
 
     for(const token of code.match(tokenizer) ?? []) {
         switch(token[0]) {
@@ -53,7 +53,7 @@ export function parse(code: string, option?: Partial<ParseOption>): AST {
             case ',':
                 curr_ast.push({type: 'read'});
                 break;
-            case '@':
+            case '#':
                 curr_ast.push({type: 'breakpoint'});
                 break;
         }

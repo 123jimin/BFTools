@@ -15,7 +15,7 @@ export interface IO {
     type: 'write' | 'read';
 }
 
-/** Equivalent to @ (supported on some BF interpreters) */
+/** Equivalent to # (supported on some BF interpreters) */
 export interface Breakpoint {
     type: 'breakpoint';
 }
@@ -28,7 +28,9 @@ export interface Loop {
 
 export type AST = Move | Cell | IO | Breakpoint | Loop | AST[];
 
-export type ToBFCodeOption = Record<string, never>;
+export interface ToBFCodeOption {
+    breakpoint_char: string;
+};
 
 export function toBFCode(ast: AST, option?: Partial<ToBFCodeOption>): string {
     if(Array.isArray(ast)) return ast.map((child) => toBFCode(child, option)).join('');
@@ -47,7 +49,7 @@ export function toBFCode(ast: AST, option?: Partial<ToBFCodeOption>): string {
         case 'read':
             return ',';
         case 'breakpoint':
-            return '@';
+            return option?.breakpoint_char ?? '#';
         case 'loop':
             return `[${toBFCode(ast.body, option)}]`;
     }
