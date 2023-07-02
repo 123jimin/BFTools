@@ -44,6 +44,7 @@ export function tokenize(code: string): Token[] {
     let last_index = 0;
 
     while((match = regex.exec(code))) {
+        // TODO: check skipped non-tokens
         if(match[1]) {
             if(match[1] !== ';') tokens.push(match[1] as SpecialChar);
         } else if(match[2]) {
