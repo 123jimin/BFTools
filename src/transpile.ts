@@ -12,6 +12,17 @@ export function bsm2bf(bsm_ast: BSM_AST): BF_AST {
             const bf_ast: BF_AST[] = [];
             let curr_offset = 0;
 
+            if(bsm_ast.clears) {
+                for(const offset of bsm_ast.clears) {
+                    if(curr_offset !== offset) {
+                        bf_ast.push({type: 'move', delta: offset - curr_offset});
+                        curr_offset = offset;
+                    }
+
+                    bf_ast.push({type: 'loop', body: {type: 'cell', delta: -1}});
+                }
+            }
+
             if(bsm_ast.deltas) {
                 for(const [offset, delta] of bsm_ast.deltas.entries()) {
                     if(curr_offset !== offset) {
@@ -20,18 +31,6 @@ export function bsm2bf(bsm_ast: BSM_AST): BF_AST {
                     }
 
                     if(delta) bf_ast.push({type: 'cell', delta: delta});
-                }
-            }
-
-            if(bsm_ast.sets) {
-                for(const [offset, value] of bsm_ast.sets.entries()) {
-                    if(curr_offset !== offset) {
-                        bf_ast.push({type: 'move', delta: offset - curr_offset});
-                        curr_offset = offset;
-                    }
-
-                    bf_ast.push({type: 'loop', body: {type: 'cell', delta: -1}});
-                    if(value) bf_ast.push({type: 'cell', delta: value});
                 }
             }
 

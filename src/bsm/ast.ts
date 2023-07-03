@@ -3,47 +3,54 @@ import type { Move as BFMove, Cell as BFCell } from "../bf/ast.ts";
 /** Replaces a combination of `bf.Move` and `bf.Cell`s */
 export interface Cells {
     type: 'cells';
+    /** Setting cells' values to zero before applying deltas. */
+    clears?: Set<number>;
     /** Changes of cells' values, specified via a map of (offset, delta). */
     deltas?: Map<number, number>;
-    /** Setting cells' values, specified via a map of (offset, value). */
-    sets?: Map<number, number>;
     /** Amount of pointer shifts after `deltas` and `sets` are processed. */
     offset: number;
 }
 
-export function mergeCells(target: Cells, op: BFMove | BFCell | Cells): Cells {
+export type CellMergeable = BFMove | BFCell | Cells;
+
+export function mergeCells(target: Cells, op: CellMergeable): Cells {
     switch(op.type) {
         case 'move':
             target.offset += op.delta;
             break;
-        case 'cell':
-            if(target.sets?.has(target.offset)) {
-                target.sets.set(target.offset, target.sets.get(target.offset)! + op.delta);
+        case 'cell': {
+            const new_delta = (target.deltas?.get(target.offset) ?? 0) + op.delta;
+            if(new_delta === 0) {
+                target.deltas?.delete(target.offset);
+            } else {
+                if(!target.deltas) target.deltas = new Map();
+                target.deltas.set(target.offset, new_delta);
             }
             break;
+        }
         case 'cells':
-            if(op.deltas) {
-                for(let [offset, value] of op.deltas.entries()) {
+            if(op.clears) {
+                if(!target.clears) target.clears = new Set();
+
+                for(let offset of op.clears) {
                     offset += target.offset;
                     
-                    if(target.sets?.has(offset)) {
-                        target.sets.set(offset, target.sets.get(offset)! + value);
-                        continue;
-                    }
-                    
-                    if(!target.deltas) target.deltas = new Map();
-                    target.deltas.set(offset, (target.deltas.get(offset) ?? 0) + value);
+                    target.clears?.add(offset);
+                    target.deltas?.delete(offset);
                 }
             }
 
-            if(op.sets) {
-                for(let [offset, value] of op.sets.entries()) {
+            if(op.deltas) {
+                for(let [offset, delta] of op.deltas.entries()) {
                     offset += target.offset;
-                    
-                    if(target.deltas?.has(offset)) target.deltas.delete(offset);
+                    delta += target.deltas?.get(offset) ?? 0;
 
-                    if(!target.sets) target.sets = new Map();
-                    target.sets.set(offset, (target.sets.get(offset) ?? 0) + value);
+                    if(delta === 0) {
+                        target.deltas?.delete(offset);
+                    } else {
+                        if(!target.deltas) target.deltas = new Map();
+                        target.deltas.set(offset, delta);
+                    }
                 }
             }
 
@@ -92,20 +99,22 @@ function toBSMCode_inner(ast: AST, curr_indent: string, option?: Partial<ToBSMCo
             const lines: string[] = [];
             let curr_offset = 0;
 
+            if(ast.clears) {
+                for(const offset of ast.clears) {
+                    toBSMCode_move(lines, curr_indent, offset - curr_offset); curr_offset = offset;
+
+                    const value = ast.deltas?.get(offset) ?? 0;
+                    lines.push(`${curr_indent}set ${value}`);
+                }
+            }
+ 
             if(ast.deltas) {
                 for(const [offset, delta] of ast.deltas.entries()) {
+                    if(ast.clears?.has(offset)) continue;
                     toBSMCode_move(lines, curr_indent, offset - curr_offset); curr_offset = offset;
     
                     if(delta > 0) lines.push(`${curr_indent}inc ${delta}`);
                     else if(delta < 0) lines.push(`${curr_indent}dec ${-delta}`);
-                }
-            }
-
-            if(ast.sets) {
-                for(const [offset, value] of ast.sets.entries()) {
-                    toBSMCode_move(lines, curr_indent, offset - curr_offset); curr_offset = offset;
-    
-                    lines.push(`${curr_indent}set ${value}`);
                 }
             }
 

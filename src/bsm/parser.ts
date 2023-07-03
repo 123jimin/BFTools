@@ -1,114 +1,72 @@
-import type { AST, Loop } from "./ast.ts";
-import { tokenize } from "./token.ts";
+import type { AST, Cells, CellMergeable } from "./ast.ts";
+import type { Statement, Literal } from "./grammar.d.ts";
 
-export class ParseError extends Error {
-    constructor(message?: string) {
-        super(message);
-    }
-}
+import { mergeCells } from "./ast.ts";
+
+// @deno-types="./grammar.d.ts"
+import grammar from "./grammar.js";
 
 const encoder = new TextEncoder();
 
-export function parse(code: string): AST {
-    const tokens = tokenize(code);
+const literalToIntList = (literal: Literal): number[] => {
+    if(typeof literal === 'number') return [literal];
+    if(typeof literal === 'string') return [...encoder.encode(literal)];
 
-    let curr_ast: AST[] = [];
-    const stack: AST[][] = [];
+    return literal.map((v) => {
+        if(typeof v !== 'number') throw new Error("Non-int lists are not supported!");
+        return v;
+    });
+};
 
-    const pushAST = (ast: AST) => {
-        curr_ast.push(ast);
-    };
-
-    const lookaheadLiteral = (i:number): [i: number, v: number[] | null] => {
-        if(i+1 >= tokens.length) return [i, null];
-
-        const next_token = tokens[i+1]!;
-
-        if(typeof next_token === 'object') {
-            switch(next_token.type) {
-                case 'string': return [i+1, [...encoder.encode(next_token.value)]];
-                case 'number': return[i+1, [next_token.value]];
-            }
+const tryMerge = (ast_list: AST[], elem: CellMergeable) => {
+    const ast_last: Cells = (() => {
+        if(ast_list.length > 0) {
+            const last_ast = ast_list.at(-1)!;
+            if((typeof last_ast === 'object') && 'type' in last_ast && last_ast.type === 'cells') return last_ast;
         }
 
-        return [i, null];
-    };
+        const new_cells: Cells = {type: 'cells', offset: 0};
+        ast_list.push(new_cells);
+        return new_cells;
+    })();
+    
+    mergeCells(ast_last, elem);
+}; 
 
-    for(let i=0; i<tokens.length; ++i) {
-        const token = tokens[i];
-        if(typeof token !== 'string') throw new ParseError("Invalid literal!");
+function transformStatements(statements: Statement[]): AST[] {
+    const ast_list: AST[] = [];
 
-        switch(token) {
-            case 'loop': {
-                if(tokens[++i] !== '{') {
-                    throw new ParseError("Invalid loop!");
-                }
-                const inner_body: AST[] = [];
-                const loop: Loop = {type: 'loop', body: inner_body };
-                curr_ast.push(loop);
-                stack.push(curr_ast);
-                curr_ast = inner_body;
-                break;
-            }
-            case '}':
-                if (stack.length === 0) {
-                    throw new ParseError("Unmatched closing block!");
-                }
-                curr_ast = stack.pop()!;
-                break;
+    for(const statement of statements) {
+        switch(statement.type) {
             case 'left':
-            case 'right': {
-                let amount = 1;
-
-                const [ni, v] = lookaheadLiteral(i);
-                if(v) {
-                    if(v.length !== 1) throw new ParseError("Invalid literal!");
-                    amount = v[0];
-                }
-                
-                i = ni;
-
-                if(token === 'left') amount *= -1;
-                pushAST({type: 'cells', offset: amount});
+            case 'right':
+                tryMerge(ast_list, {type: 'move', delta: (statement.type === 'left' ? -statement.delta : statement.delta)});
                 break;
-            }
             case 'dec':
-            case 'inc': {
-                let amounts = [1];
-
-                if(token === 'dec') {
-                    for(let j=0; j<amounts.length; ++j) amounts[j] = -amounts[j];
-                }
-
+            case 'inc':
+                tryMerge(ast_list, {type: 'cells', deltas: new Map(literalToIntList(statement.delta).map((x, i) => [i, (statement.type === 'dec' ? -x : x)])), offset: 0});
                 break;
-            }
             case 'set': {
-                const [ni, v] = lookaheadLiteral(i);
-                if(!v) throw new ParseError("Set values not specified!");
-
-                pushAST({type: 'cells', sets: new Map(v.map((x, i) => [i, x])), offset: 0});
-
-                i = ni;
+                const list = literalToIntList(statement.value);
+                tryMerge(ast_list, {type: 'cells', clears: new Set(list.map((_, i) => i)), deltas: new Map(list.map((x, i) => [i, x])), offset: 0});
                 break;
             }
-            case 'write':
-                // TODO: support writing a string
-                pushAST({type: 'write'});
-                break;
             case 'read':
-                pushAST({type: 'read'});
+            case 'write':
+                ast_list.push({type: statement.type});
                 break;
             case 'debug':
-                pushAST({type: 'breakpoint'});
+                ast_list.push({type: 'breakpoint'});
                 break;
-            default:
-                throw new ParseError("Invalid token!");
+            case 'loop':
+                ast_list.push({type: 'loop', body: transformStatements(statement.body)});
+                break;
         }
     }
 
-    if(stack.length > 0) {
-        throw new ParseError("Unmatched block!");
-    }
+    return ast_list;
+}
 
-    return curr_ast;
+export function parse(code: string): AST {
+    return transformStatements(grammar.parse(code));
 }
