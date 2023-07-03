@@ -58,7 +58,7 @@ loop {
 
 ### Breakpoint
 ```text
-# @
+# "#"
 # Supported by some interpreters.
 debug
 ```
