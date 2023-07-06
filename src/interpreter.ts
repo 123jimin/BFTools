@@ -5,9 +5,36 @@ export interface InterpreterOption {
     init_buffer_size: number;
     max_buffer_size: number|null;
 
-    read: () => Promise<number>;
+    eof: number;
+
+    read: () => Promise<number|null>;
     break: () => Promise<void>;
     write: (ch: number) => void;
+}
+
+export class DenoIO {
+    reader: Deno.Reader|null = null;
+    writer: Deno.Writer|null = null;
+
+    buffer: Uint8Array = new Uint8Array(1);
+
+    constructor(reader: Deno.Reader|null, writer: Deno.Writer|null) {
+        this.reader = reader;
+        this.writer = writer;
+    }
+
+    async read(): Promise<number|null> {
+        if(!this.reader) return null;
+
+        const bytes = await this.reader.read(this.buffer);
+        if(bytes) return this.buffer[0];
+        else return null;
+    }
+
+    write(ch: number): void {
+        this.buffer[0] = ch;
+        void this.writer?.write(this.buffer);
+    }
 }
 
 export class Interpreter {
@@ -17,14 +44,16 @@ export class Interpreter {
     option: InterpreterOption;
 
     constructor(option?: Partial<InterpreterOption>) {
-
         this.option = {
             init_buffer_size: 1024,
             max_buffer_size: null,
+            eof: 0,
+
             read: async () => 42,
             // deno-lint-ignore require-await
             break: async () => void 0,
             write: (ch: number) => {},
+
             ...option
         };
 
@@ -78,10 +107,11 @@ export class Interpreter {
                 this.pointer = ast.offset + base;
                 break;
             }
-            case 'read':
+            case 'read': {
                 this._tryExtend();
-                this.buffer[this.pointer] = await this.option.read();
+                this.buffer[this.pointer] = (await this.option.read()) ?? this.option.eof;
                 break;
+            }
             case 'write':
                 this._tryExtend();
                 this.option.write(this.buffer[this.pointer]);
