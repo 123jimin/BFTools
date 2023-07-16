@@ -14,11 +14,11 @@ export interface InterpreterOption {
 
 export class DenoIO {
     reader: Deno.Reader|null = null;
-    writer: Deno.Writer|null = null;
+    writer: Deno.WriterSync|null = null;
 
     buffer: Uint8Array = new Uint8Array(1);
 
-    constructor(reader: Deno.Reader|null, writer: Deno.Writer|null) {
+    constructor(reader: Deno.Reader|null, writer: Deno.WriterSync|null) {
         this.reader = reader;
         this.writer = writer;
     }
@@ -33,7 +33,7 @@ export class DenoIO {
 
     write(ch: number): void {
         this.buffer[0] = ch;
-        void this.writer?.write(this.buffer);
+        this.writer?.writeSync(this.buffer);
     }
 }
 
@@ -49,10 +49,11 @@ export class Interpreter {
             max_buffer_size: null,
             eof: 0,
 
-            read: async () => 42,
+            // deno-lint-ignore require-await
+            read: async () => null,
             // deno-lint-ignore require-await
             break: async () => void 0,
-            write: (ch: number) => {},
+            write: (_ch: number) => {},
 
             ...option
         };
@@ -120,7 +121,11 @@ export class Interpreter {
                 await this.option.break();
                 break;
             case 'loop':
-                await this.run(ast.body);
+                while(true) {
+                    if(this.pointer < 0) throw new Error("Invalid pointer location!");
+                    if(this.pointer < this.buffer.length && this.buffer[this.pointer] === 0) break;
+                    await this.run(ast.body);
+                }
                 break;
         }
     }
