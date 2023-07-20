@@ -1,5 +1,5 @@
-import { AST as BFAST } from "./bf/index.ts";
-import { AST as BSMAST} from "./bsm/index.ts";
+import { AST as BFAST } from "./bf/mod.ts";
+import { AST as BSMAST} from "./bsm/mod.ts";
 
 export interface InterpreterOption {
     init_buffer_size: number;

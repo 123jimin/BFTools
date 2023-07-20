@@ -1,9 +1,9 @@
 import yargs from "https://deno.land/x/yargs@v17.7.2-deno/deno.ts";
 import type { Arguments } from "https://deno.land/x/yargs@v17.7.2-deno/deno-types.ts";
 
-import * as bf from "../bf/index.ts";
-import * as bsm from "../bsm/index.ts";
-import * as transpile from "../transpile.ts";
+import * as bf from "../bf/mod.ts";
+import * as bsm from "../bsm/mod.ts";
+import * as transpile from "../transpile/mod.ts";
 import * as interpreter from "../interpreter.ts";
 
 interface CompilerProgramParam {

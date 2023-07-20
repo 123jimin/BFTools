@@ -1,5 +1,5 @@
-import type {AST as BF_AST} from "./bf/index.ts";
-import type {AST as BSM_AST} from "./bsm/index.ts";
+import type {AST as BF_AST} from "../bf/mod.ts";
+import type {AST as BSM_AST} from "../bsm/mod.ts";
 
 export function bsm2bf(bsm_ast: BSM_AST): BF_AST {
     if(Array.isArray(bsm_ast)) {
