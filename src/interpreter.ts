@@ -73,7 +73,7 @@ export class Interpreter {
     async run(ast: BFAST|BSMAST): Promise<void> {
         if(Array.isArray(ast)) {
             for(const child of ast) {
-                this.run(child);
+                await this.run(child);
             }
             return;
         }

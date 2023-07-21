@@ -1,3 +1,3 @@
-set "\0Hello, world!\0"
+set "\0Hello, world!\n\0"
 right
 loop { write; right; }
